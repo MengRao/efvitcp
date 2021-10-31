@@ -13,7 +13,7 @@ These problems make tcpdirect hard to use in practice, so an alternative approac
 
 ## Features
 * Fast - it makes good use of solarflare's low-latency features including CTPIO, it's even faster than tcpdirect especially for large segments.
-* Headers only and no third-party dependences(except ef_vi lib).
+* Headers only and no third-party dependences(except for ef_vi).
 * Reactor model with rich network and time events, giving finer control over a tcp connection.
 * Highly configurable in compile-time.
 * Non-blocking - none of the apis blocks.
