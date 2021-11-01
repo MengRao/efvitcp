@@ -183,3 +183,20 @@ struct Conf
 * `bool TimestampOption`: Whether or not to enable tcp timestamp option. This option can be used to update rtt more precisely, recognize old duplicate packets more accurately and PAWS(Protection Against Wrapped Sequences). if `WindowScaleOption` is used, `TimestampOption` should also be enabled.
 * `int CongestionControlAlgo`: The congestion control algorithm to use. There're three options available: "0": no cwnd; "1": new reno; "2": cubic. The "on cwnd" option is almost equal to no congestion control, but fast retransmission/recover is still used: the first unacked segment will be resent immediately on 3 duplicate acks or a partial ack in recover.
 * `uint32_t UserTimerCnt`: The number of user timers per connection. The timer_id must be less than this value.
+
+## Memory overhead
+Efvitcp won't dynamically allocate memory, all memoery it uses is in the object user defines, so it's pretty easy to check the memory overhead of efvitcp:
+```c++
+// using the Conf defined in above example
+using TcpServer = efvitcp::TcpServer<Conf>;
+
+cout << sizeof(TcpServer) << endl;
+
+// output: 114190800
+```
+
+## Thread Safety
+Efvitcp is not thread safe, user should have the same thread polling TcpClient/TcpServer and operating on TcpConns. Multi-threading communication techniques can be used to pass data among the network thread and data processing threads.
+
+## Pollnet Interface
+Efvitcp also provides a wrapper class `EfviTcpClient` using the [pollnet](https://github.com/MengRao/pollnet) interface, so users can easily switch tcp client underlying implemenation among Socket/Tcpdirect/Efvi with same application code. Currently EfviTcpServer pollnet api is not implemented because of different multiplexing mechanism.
