@@ -124,12 +124,12 @@ void onFin(TcpConn& conn, uint8_t* data, uint32_t size) {}
 ```
 where `data` and `size` are the last unconsumed data and `size` could be 0.
 
-When the 4-way handshake is complete and the connection enters into either Closed or TimeWait status, below event will trigger:
+When the 4-way handshake is complete and the connection enters into either CLOSED or TIME_WAIT state, below event will trigger:
 ```c++
 void onConnectionClosed(TcpConn& conn){}
 ```
 
-If user doesn't want to go through the elegant tcp closure procedure and wish to close the connection immediately, he can call `close()` on the `TcpConn` and a Rst will be sent out and the connection goes into Closed status. On receiving a Rst, below event will trigger:
+If user doesn't want to go through the elegant tcp closure procedure and wish to close the connection immediately, he can call `close()` on the `TcpConn` and a Rst will be sent out and the connection goes into CLOSED status. On receiving a Rst, below event will trigger:
 ```c++
 void onConnectionReset(TcpConn& conn) {}
 ```
@@ -142,9 +142,69 @@ Lastly, efvitcp allows for user timers on a connection basis, and each connectio
 void onUserTimeout(TcpConn& conn, uint32_t timer_id) {}
 ```
 
+Some other information user can get from a TcpConn what may be helpful:
+* A variable `user_data` of user defined type. It can be any user data attached to a connection.
+* `uint32_t getConnId()`: Get connection ID starting from 0, the ID is auto assigned by the lib like fd in linux, it can be reused after the connection is closed.
+* `bool isEstablished()`: Check if the connection is established, it may be useful in `onConnectionTimeout()` callback because it can ocurr in both unestablished and established connection.
+* `bool isClosed()`: Check if the connection is closed, if so the connection should not be used.
+
 The interfaces of TcpServer template is very similar to that of TcpClient, with below differeces:
 * The `connect()` function is replaced by `const char* listen(uint16_t server_port)`
 * The `onConnectionRefused()` event is replaced by `bool allowNewConnection(uint32_t ip, uint16_t port_be)`, this new event occurs when a new connection is being established(in Syn-Received state) and the user can decide whether to accept it or not according to its remote ip and port.
 
 ## Configurations
-to be continued...
+Below is an example of configuration struct of TcpServer, and TcpClient uses almost the same config, we'll go through them one by one.
+```c++
+struct Conf
+{
+  static const uint32_t ConnSendBufCnt = 512;
+  static const bool SendBuf1K = true;
+  static const uint32_t ConnRecvBufSize = 40960;
+  static const uint32_t MaxConnCnt = 200;
+  static const uint32_t MaxTimeWaitConnCnt = 100;
+  static const uint32_t RecvBufCnt = 512;
+  static const uint32_t SynRetries = 3;
+  static const uint32_t TcpRetries = 10;
+  static const uint32_t DelayedAckMS = 10;
+  static const uint32_t MinRtoMS = 100;
+  static const uint32_t MaxRtoMS = 30 * 1000;
+  static const bool WindowScaleOption = false;
+  static const bool TimestampOption = false;
+  static const int CongestionControlAlgo = 0; // 0: no cwnd, 1: new reno, 2: cubic
+  static const uint32_t UserTimerCnt = 1;
+  using UserData = char;
+};
+```
+* `uint32_t ConnSendBufCnt`: The number of DMA send buffers in one connection. Send buffer is used to hold unacked data in case it need to be resent, if the buffer is full no more data can be sendable.
+* `bool SendBuf1K`: Whether to use 1024 bytes for a DMA send buffer. If set to false, 2048 bytes is used. ef_vi requires that a DMA buffer be in a 4096 aligned block, and as typical MTU is 1500 bytes, using 2048 sized buffer will have 25% memeory wasted. So setting `SendBuf1K` to true will maximize memory unilization but reducing the max SMSS to 960 bytes.
+* `uint32_t ConnRecvBufSize`: Receving buffer size in bytes for each connection. It determines the maximum receive window advertised to the remote peer, and also used to hold unconsumed data(by remaining size returned by onData) and out of sequence data received.
+* `uint32_t MaxConnCnt`: Max number of connections supported. This is used only by TcpServer.
+* `uint32_t MaxTimeWaitConnCnt`: Max number of TIME_WAIT connections supported. Note that TIME_WAIT connection is not included in `MaxConnCnt`. A TIME_WAIT connection uses much less memory than a normal connection.
+* `uint32_t RecvBufCnt`: The number of DMA receive buffers(one is 2048 bytes) shared by all connections. These DMA buffers are used to transfer network frames received by the NIC to the application, once efvitcp got a filled buffer it can be reused again immediately, so this config don't need to be large, typically 512 is a good default value, the maxmium number ef_vi can support is 4095.
+* `uint32_t SynRetries`: Max number of SYN resents for an unestablished connection. When breached, onConnectionTimeout will be triggered.
+* `uint32_t TcpRetries`: Max number of data segment resents for an established connection. When breached, onConnectionTimeout will be triggered.
+* `uint32_t DelayedAckMS`: Timeout of delayed ack. Setting to 0 will disable delayed ack.
+* `uint32_t MinRtoMS`: Mininum retransmission timeout.
+* `uint32_t MaxRtoMS`: Maximum retransmission timeout.
+* `bool WindowScaleOption`: Whether or not to enable tcp window scale option. This option is useful if window size could be larger than 65535 in either peer.
+* `bool TimestampOption`: Whether or not to enable tcp timestamp option. This option can be used to update rtt more precisely, recognize old duplicate packets more accurately and PAWS(Protection Against Wrapped Sequences). if `WindowScaleOption` is used, `TimestampOption` should also be enabled.
+* `int CongestionControlAlgo`: The congestion control algorithm to use. There're three options available: "0": no cwnd; "1": new reno; "2": cubic. The "on cwnd" option is almost equal to no congestion control, but fast retransmission/recover is still used: the first unacked segment will be resent immediately on 3 duplicate acks or a partial ack in recover.
+* `uint32_t UserTimerCnt`: The number of user timers per connection. The timer_id must be less than this value.
+* `using UserData`: User defined type attached to each connection, which can be accessed by conn.user_data.
+
+## Memory overhead
+Efvitcp won't dynamically allocate memory, all memoery it uses is in the object user defines, so it's pretty easy to check the memory overhead of efvitcp:
+```c++
+// using the Conf defined in above example
+using TcpServer = efvitcp::TcpServer<Conf>;
+
+cout << sizeof(TcpServer) << endl;
+
+// output: 114192400
+```
+
+## Thread Safety
+Efvitcp is not thread safe, user should have the same thread polling TcpClient/TcpServer and operating on TcpConns. Multi-threading communication techniques can be used to pass data among the network thread and data processing threads.
+
+## Pollnet Interface
+Efvitcp also provides a wrapper class `EfviTcpClient` using the [pollnet](https://github.com/MengRao/pollnet) interface, so users can easily switch tcp client underlying implemenation among Socket/Tcpdirect/Efvi with same application code. Currently EfviTcpServer pollnet api is not implemented because of different multiplexing mechanism.
