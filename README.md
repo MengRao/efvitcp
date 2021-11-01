@@ -142,6 +142,12 @@ Lastly, efvitcp allows for user timers on a connection basis, and each connectio
 void onUserTimeout(TcpConn& conn, uint32_t timer_id) {}
 ```
 
+Some other information user can get from a TcpConn what may be helpful:
+* A variable `user_data` of user defined type. It can be any user data attached to a connection.
+* `uint32_t getConnId()`: Get connection ID starting from 0, the ID is auto assigned by the lib like fd in linux, it can be reused after the connection is closed.
+* `bool isEstablished()`: Check if the connection is established, it may be useful in `onConnectionTimeout()` callback because it can ocurr in both unestablished and established connection.
+* `bool isClosed()`: Check if the connection is closed, if so the connection should not be used.
+
 The interfaces of TcpServer template is very similar to that of TcpClient, with below differeces:
 * The `connect()` function is replaced by `const char* listen(uint16_t server_port)`
 * The `onConnectionRefused()` event is replaced by `bool allowNewConnection(uint32_t ip, uint16_t port_be)`, this new event occurs when a new connection is being established(in Syn-Received state) and the user can decide whether to accept it or not according to its remote ip and port.
@@ -166,6 +172,7 @@ struct Conf
   static const bool TimestampOption = false;
   static const int CongestionControlAlgo = 0; // 0: no cwnd, 1: new reno, 2: cubic
   static const uint32_t UserTimerCnt = 1;
+  using UserData = char;
 };
 ```
 * `uint32_t ConnSendBufCnt`: The number of DMA send buffers in one connection. Send buffer is used to hold unacked data in case it need to be resent, if the buffer is full no more data can be sendable.
@@ -183,6 +190,7 @@ struct Conf
 * `bool TimestampOption`: Whether or not to enable tcp timestamp option. This option can be used to update rtt more precisely, recognize old duplicate packets more accurately and PAWS(Protection Against Wrapped Sequences). if `WindowScaleOption` is used, `TimestampOption` should also be enabled.
 * `int CongestionControlAlgo`: The congestion control algorithm to use. There're three options available: "0": no cwnd; "1": new reno; "2": cubic. The "on cwnd" option is almost equal to no congestion control, but fast retransmission/recover is still used: the first unacked segment will be resent immediately on 3 duplicate acks or a partial ack in recover.
 * `uint32_t UserTimerCnt`: The number of user timers per connection. The timer_id must be less than this value.
+* `using UserData`: User defined type attached to each connection, which can be accessed by conn.user_data.
 
 ## Memory overhead
 Efvitcp won't dynamically allocate memory, all memoery it uses is in the object user defines, so it's pretty easy to check the memory overhead of efvitcp:
