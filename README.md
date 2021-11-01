@@ -145,6 +145,7 @@ void onUserTimeout(TcpConn& conn, uint32_t timer_id) {}
 Some other information user can get from a TcpConn what may be helpful:
 * A variable `user_data` of user defined type. It can be any user data attached to a connection.
 * `uint32_t getConnId()`: Get connection ID starting from 0, the ID is auto assigned by the lib like fd in linux, it can be reused after the connection is closed.
+* `void getPeername(struct sockaddr_in& addr)`: get network address of the remote peer.
 * `bool isEstablished()`: Check if the connection is established, it may be useful in `onConnectionTimeout()` callback because it can ocurr in both unestablished and established connection.
 * `bool isClosed()`: Check if the connection is closed, if so the connection should not be used.
 
@@ -179,7 +180,7 @@ struct Conf
 * `bool SendBuf1K`: Whether to use 1024 bytes for a DMA send buffer. If set to false, 2048 bytes is used. ef_vi requires that a DMA buffer be in a 4096 aligned block, and as typical MTU is 1500 bytes, using 2048 sized buffer will have 25% memeory wasted. So setting `SendBuf1K` to true will maximize memory unilization but reducing the max SMSS to 960 bytes.
 * `uint32_t ConnRecvBufSize`: Receving buffer size in bytes for each connection. It determines the maximum receive window advertised to the remote peer, and also used to hold unconsumed data(by remaining size returned by onData) and out of sequence data received.
 * `uint32_t MaxConnCnt`: Max number of connections supported. This is used only by TcpServer.
-* `uint32_t MaxTimeWaitConnCnt`: Max number of TIME_WAIT connections supported. Note that TIME_WAIT connection is not included in `MaxConnCnt`. A TIME_WAIT connection uses much less memory than a normal connection.
+* `uint32_t MaxTimeWaitConnCnt`: Max number of TIME_WAIT connections supported. Note that TIME_WAIT connection is not included in `MaxConnCnt`. A TIME_WAIT connection uses much less memory than a normal connection. Also note that efvitcp doesn't distinguish between active and passive closing, and all connections completing the 4-way handshake will enter into TIME_WAIT.
 * `uint32_t RecvBufCnt`: The number of DMA receive buffers(one is 2048 bytes) shared by all connections. These DMA buffers are used to transfer network frames received by the NIC to the application, once efvitcp got a filled buffer it can be reused again immediately, so this config don't need to be large, typically 512 is a good default value, the maxmium number ef_vi can support is 4095.
 * `uint32_t SynRetries`: Max number of SYN resents for an unestablished connection. When breached, onConnectionTimeout will be triggered.
 * `uint32_t TcpRetries`: Max number of data segment resents for an established connection. When breached, onConnectionTimeout will be triggered.
@@ -188,11 +189,11 @@ struct Conf
 * `uint32_t MaxRtoMS`: Maximum retransmission timeout.
 * `bool WindowScaleOption`: Whether or not to enable tcp window scale option. This option is useful if window size could be larger than 65535 in either peer.
 * `bool TimestampOption`: Whether or not to enable tcp timestamp option. This option can be used to update rtt more precisely, recognize old duplicate packets more accurately and PAWS(Protection Against Wrapped Sequences). if `WindowScaleOption` is used, `TimestampOption` should also be enabled.
-* `int CongestionControlAlgo`: The congestion control algorithm to use. There're three options available: "0": no cwnd; "1": new reno; "2": cubic. The "on cwnd" option is almost equal to no congestion control, but fast retransmission/recover is still used: the first unacked segment will be resent immediately on 3 duplicate acks or a partial ack in recover.
+* `int CongestionControlAlgo`: The congestion control algorithm to use. There're three options available: "0": no cwnd; "1": new reno; "2": cubic. The "on cwnd" option is almost equal to no congestion control, but fast retransmission is still used: the first unacked segment will be resent immediately on 3 duplicate acks or a partial ack in recover.
 * `uint32_t UserTimerCnt`: The number of user timers per connection. The timer_id must be less than this value.
 * `using UserData`: User defined type attached to each connection, which can be accessed by conn.user_data.
 
-## Memory overhead
+## Memory Overhead
 Efvitcp won't dynamically allocate memory, all memoery it uses is in the object user defines, so it's pretty easy to check the memory overhead of efvitcp:
 ```c++
 // using the Conf defined in above example
