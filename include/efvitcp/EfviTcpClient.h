@@ -55,6 +55,12 @@ public:
 
   bool isConnected() { return pc && !pc->isClosed(); }
 
+  bool getPeername(struct sockaddr_in& addr) {
+    if (!isConnected()) return false;
+    pc->getPeername(addr);
+    return true;
+  }
+
   bool connect(const char* interface, const char* server_ip, uint16_t server_port) {
     pc = nullptr;
     err = nullptr;
@@ -92,8 +98,9 @@ public:
         , got_data(false) {}
       void onConnectionRefused() { err = "connection refused"; }
       void onConnectionReset(TcpConn& conn) { err = "connection reset"; }
-      void onFin(TcpConn& conn, uint8_t* data, uint32_t size) { err = "connection closed"; }
       void onConnectionTimeout(TcpConn& conn) { err = "connection timeout"; }
+      void onConnectionClosed(TcpConn& conn) { err = "connection closed"; }
+      void onFin(TcpConn& conn, uint8_t* data, uint32_t size) { err = "connection closed"; }
       void onMoreSendable(TcpConn& conn) {}
       void onUserTimeout(TcpConn& conn, uint32_t timer_id) {}
       void onConnectionEstablished(TcpConn& conn) { pc = &conn; }

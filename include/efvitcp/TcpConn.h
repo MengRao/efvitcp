@@ -32,6 +32,12 @@ class TcpConn
 public:
   uint32_t getConnId() { return conn_id; }
 
+  void getPeername(struct sockaddr_in& addr) {
+    SendBuf* buf = getSendBuf(0);
+    addr.sin_addr.s_addr = buf->ip_hdr.dst_ip;
+    addr.sin_port = buf->tcp_hdr.dst_port;
+  }
+
   bool isEstablished() { return established; }
 
   bool isClosed() { return fin_received && !established; }
@@ -754,7 +760,10 @@ private:
       }
     }
     if (pending_ack) sendAck(immediate_ack || recv_buf_seq + segs[0].second - last_ack_seq >= 2 * getRMSS());
-    if (fin_sent && fin_received && (send_una == data_next)) onClose(true);
+    if (fin_sent && fin_received && (send_una == data_next)) {
+      handler.onConnectionClosed(*this);
+      onClose(true);
+    }
   }
 
   void resendUna(bool reset_ssthresh) {

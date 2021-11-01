@@ -97,6 +97,8 @@ public:
 
   void onConnectionReset(TcpConn& conn) { cout << "onConnectionReset" << endl; }
 
+  void onConnectionClosed(TcpConn& conn) { cout << "onConnectionClosed" << endl; }
+
   void onFin(TcpConn& conn, uint8_t* data, uint32_t size) {
     cout << "onFin, remaining data size:" << size << endl;
     conn.sendFin();

@@ -59,7 +59,10 @@ public:
   }
 
   void onConnectionEstablished(TcpConn& conn) {
-    cout << "onConnectionEstablished, id: " << conn.getConnId() << endl;
+    struct sockaddr_in addr;
+    conn.getPeername(addr);
+    cout << "onConnectionEstablished, id: " << conn.getConnId() << " from: " << inet_ntoa(addr.sin_addr) << ":"
+         << ntohs(addr.sin_port) << endl;
     cout << "sendable: " << conn.getSendable() << endl;
     conn.setUserTimer(0, 10 * 1000);
   }
@@ -74,6 +77,8 @@ public:
   }
 
   void onConnectionReset(TcpConn& conn) { cout << "onConnectionReset" << endl; }
+
+  void onConnectionClosed(TcpConn& conn) { cout << "onConnectionClosed" << endl; }
 
   void onFin(TcpConn& conn, uint8_t* data, uint32_t size) {
     cout << "onFin, remaining data size:" << size << endl;
