@@ -200,7 +200,7 @@ using TcpServer = efvitcp::TcpServer<Conf>;
 
 cout << sizeof(TcpServer) << endl;
 
-// output: 114190800
+// output: 114192400
 ```
 
 ## Thread Safety
