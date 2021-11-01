@@ -196,7 +196,7 @@ struct Conf
 ## Memory Overhead
 Efvitcp won't dynamically allocate memory, all memoery it uses is in the object user defines, so it's pretty easy to check the memory overhead of efvitcp:
 ```c++
-// using the Conf defined in above example
+// using the Conf defined in the above example
 using TcpServer = efvitcp::TcpServer<Conf>;
 
 cout << sizeof(TcpServer) << endl;
