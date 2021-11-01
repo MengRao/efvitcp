@@ -19,6 +19,7 @@ struct Conf
   static const bool TimestampOption = false;
   static const int CongestionControlAlgo = 0; // 0: no cwnd, 1: new reno, 2: cubic
   static const uint32_t UserTimerCnt = 2;
+  using UserData = char;
 };
 using TcpClient = efvitcp::TcpClient<Conf>;
 using TcpConn = TcpClient::Conn;

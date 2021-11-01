@@ -9,7 +9,7 @@ struct Conf
   static const uint32_t ConnRecvBufSize = 40960;
   static const uint32_t MaxConnCnt = 200;
   static const uint32_t MaxTimeWaitConnCnt = 100;
-  static const uint32_t RecvBufCnt = 4095;
+  static const uint32_t RecvBufCnt = 512;
   static const uint32_t SynRetries = 3;
   static const uint32_t TcpRetries = 10;
   static const uint32_t DelayedAckMS = 10;
@@ -17,8 +17,9 @@ struct Conf
   static const uint32_t MaxRtoMS = 30 * 1000;
   static const bool WindowScaleOption = false;
   static const bool TimestampOption = false;
-  static const int CongestionControlAlgo = 0; // 0: none, 1: new reno, 2: cubic
+  static const int CongestionControlAlgo = 0; // 0: no cwnd, 1: new reno, 2: cubic
   static const uint32_t UserTimerCnt = 1;
+  using UserData = char;
 };
 using TcpServer = efvitcp::TcpServer<Conf>;
 using TcpConn = TcpServer::Conn;

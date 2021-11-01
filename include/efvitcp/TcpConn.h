@@ -30,6 +30,8 @@ template<typename Conf>
 class TcpConn
 {
 public:
+  typename Conf::UserData user_data;
+
   uint32_t getConnId() { return conn_id; }
 
   void getPeername(struct sockaddr_in& addr) {
