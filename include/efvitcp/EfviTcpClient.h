@@ -79,7 +79,7 @@ public:
   }
 
   // blocking write is not supported currently
-  bool writeNonblock(const uint8_t* data, uint32_t size, bool more = false) {
+  bool writeNonblock(const void* data, uint32_t size, bool more = false) {
     if (pc->send(data, size, more) != size) {
       pc->close();
       err = "send buffer full";
