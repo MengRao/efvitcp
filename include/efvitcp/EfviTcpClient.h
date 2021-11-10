@@ -68,7 +68,7 @@ public:
     if ((err = client.init(interface))) return false;
     if ((err = client.connect(server_ip, server_port))) return false;
     while (!pc && !err) {
-      read([&](const char* data, uint32_t size) { return size; });
+      read([&](const uint8_t* data, uint32_t size) { return size; });
     };
     return pc;
   }
@@ -79,7 +79,7 @@ public:
   }
 
   // blocking write is not supported currently
-  bool writeNonblock(const char* data, uint32_t size, bool more = false) {
+  bool writeNonblock(const uint8_t* data, uint32_t size, bool more = false) {
     if (pc->send(data, size, more) != size) {
       pc->close();
       err = "send buffer full";
@@ -107,7 +107,7 @@ public:
       void onConnectionEstablished(TcpConn& conn) { pc = &conn; }
       inline uint32_t onData(TcpConn& conn, const uint8_t* data, uint32_t size) {
         got_data = true;
-        return handler((const char*)data, size);
+        return handler(data, size);
       }
 
       Handler& handler;
